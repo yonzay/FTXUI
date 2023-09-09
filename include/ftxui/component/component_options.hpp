@@ -187,6 +187,9 @@ struct InputOption {
 
   // The char position of the cursor:
   Ref<int> cursor_position = 0;
+  
+  // Maximum length of the input
+  Ref<int> max_input_len = 32;
 };
 
 /// @brief Option for the Radiobox component.

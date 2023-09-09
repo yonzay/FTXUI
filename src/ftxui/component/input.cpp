@@ -343,6 +343,7 @@ class InputBase : public ComponentBase, public InputOption {
   }
 
   bool HandleCharacter(const std::string& character) {
+    if (content().length() >= max_input_len()) return true;
     if (!insert() && cursor_position() < (int)content->size() &&
         content()[cursor_position()] != '\n') {
       HandleDelete();
