@@ -176,6 +176,7 @@ struct InputOption {
   // Style:
   std::function<Element(InputState)> transform;
   Ref<bool> password = false;  /// < Obscure the input content using '*'.
+  Ref<char> password_char = '*'; /// Character to use to obscure the password if password is enabled 
   Ref<bool> multiline = true;  /// < Whether the input can be multiline.
   Ref<bool> insert = true;     /// < Insert or overtype character mode.
 

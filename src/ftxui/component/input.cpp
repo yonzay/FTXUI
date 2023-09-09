@@ -194,7 +194,7 @@ class InputBase : public ComponentBase, public InputOption {
     std::string out;
     out.reserve(10 + input.size() * 3 / 2);
     for (size_t i = 0; i < input.size(); ++i) {
-      out += "•";
+      out += password_char();
     }
     return text(out);
   }

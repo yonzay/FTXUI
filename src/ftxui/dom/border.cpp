@@ -19,8 +19,8 @@
 namespace ftxui {
 
 namespace {
-using Charset = std::array<std::string, 6>;  // NOLINT
-using Charsets = std::array<Charset, 6>;     // NOLINT
+using Charset = std::array<std::string, 8>;  // NOLINT
+using Charsets = std::array<Charset, 8>;     // NOLINT
 // NOLINTNEXTLINE
 static Charsets simple_border_charset = {
     Charset{"┌", "┐", "└", "┘", "─", "│"},  // LIGHT
@@ -29,6 +29,8 @@ static Charsets simple_border_charset = {
     Charset{"╔", "╗", "╚", "╝", "═", "║"},  // DOUBLE
     Charset{"╭", "╮", "╰", "╯", "─", "│"},  // ROUNDED
     Charset{" ", " ", " ", " ", " ", " "},  // EMPTY
+    Charset{"┌", "┐", "└", "┘", "─", " "},  // CUSTOM_LIGHT
+    Charset{"┏", "┓", "┗", "┛", "━", " "},  // CUSTOM_HEAVY
 };
 
 // For reference, here is the charset for normal border:
@@ -474,6 +476,14 @@ Element borderRounded(Element child) {
 /// ```
 Element borderEmpty(Element child) {
   return std::make_shared<Border>(unpack(std::move(child)), EMPTY);
+}
+
+Element borderCustomLight(Element child) {
+  return std::make_shared<Border>(unpack(std::move(child)), CUSTOM_LIGHT);
+}
+
+Element borderCustomHeavy(Element child) {
+  return std::make_shared<Border>(unpack(std::move(child)), CUSTOM_HEAVY);
 }
 
 /// @brief Draw window with a title and a border around the element.
