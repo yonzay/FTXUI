@@ -32,8 +32,10 @@ enum BorderStyle {
   DOUBLE,
   ROUNDED,
   EMPTY,
-  CUSTOM_LIGHT,
-  CUSTOM_HEAVY,
+  HOLLOW_LIGHT,
+  HOLLOW_HEAVY,
+  CONTAINER_HOLLOW_LIGHT,
+  CONTAINER_HOLLOW_HEAVY,
 };
 
 // Pipe elements into decorator togethers.
@@ -78,8 +80,10 @@ Element borderHeavy(Element);
 Element borderDouble(Element);
 Element borderRounded(Element);
 Element borderEmpty(Element);
-Element borderCustomLight(Element);
-Element borderCustomHeavy(Element);
+Element borderHollowLight(Element);
+Element borderHollowHeavy(Element);
+Decorator borderContainerHollowLight(StringRef, StringRef);
+Decorator borderContainerHollowHeavy(StringRef, StringRef);
 Decorator borderStyled(BorderStyle);
 Decorator borderStyled(BorderStyle, Color);
 Decorator borderStyled(Color);

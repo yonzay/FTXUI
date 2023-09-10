@@ -1,8 +1,9 @@
 // Copyright 2020 Arthur Sonzogni. All rights reserved.
 // Use of this source code is governed by the MIT license that can be found in
 // the LICENSE file.
-#include <algorithm>               // for max
-#include <array>                   // for array
+#include <algorithm>  // for max
+#include <array>      // for array
+#include <cassert>
 #include <ftxui/screen/color.hpp>  // for Color
 #include <memory>    // for allocator, make_shared, __shared_ptr_access
 #include <optional>  // for optional, nullopt
@@ -19,8 +20,8 @@
 namespace ftxui {
 
 namespace {
-using Charset = std::array<std::string, 8>;  // NOLINT
-using Charsets = std::array<Charset, 8>;     // NOLINT
+using Charset = std::array<std::string, 6>;  // NOLINT
+using Charsets = std::array<Charset, 10>;    // NOLINT
 // NOLINTNEXTLINE
 static Charsets simple_border_charset = {
     Charset{"┌", "┐", "└", "┘", "─", "│"},  // LIGHT
@@ -29,19 +30,35 @@ static Charsets simple_border_charset = {
     Charset{"╔", "╗", "╚", "╝", "═", "║"},  // DOUBLE
     Charset{"╭", "╮", "╰", "╯", "─", "│"},  // ROUNDED
     Charset{" ", " ", " ", " ", " ", " "},  // EMPTY
-    Charset{"┌", "┐", "└", "┘", "─", " "},  // CUSTOM_LIGHT
-    Charset{"┏", "┓", "┗", "┛", "━", " "},  // CUSTOM_HEAVY
+    Charset{"┌", "┐", "└", "┘", "─", " "},  // HOLLOW_LIGHT
+    Charset{"┏", "┓", "┗", "┛", "━", " "},  // HOLLOW_HEAVY
+    Charset{"┌", "┐", "└", "┘", "─", ""},   // CONTAINER_HOLLOW_LIGHT
+    Charset{"┏", "┓", "┗", "┛", "━", ""},   // CONTAINER_HOLLOW_HEAVY
 };
 
 // For reference, here is the charset for normal border:
 class Border : public Node {
+  StringRef left_;
+  size_t left_size_;
+  StringRef right_;
+  size_t right_size_;
+
  public:
   Border(Elements children,
          BorderStyle style,
-         std::optional<Color> foreground_color = std::nullopt)
+         std::optional<Color> foreground_color = std::nullopt,
+         std::optional<StringRef> left = std::nullopt,
+         std::optional<StringRef> right = std::nullopt)
       : Node(std::move(children)),
         charset_(simple_border_charset[style]),
-        foreground_color_(foreground_color) {}  // NOLINT
+        foreground_color_(foreground_color) {
+    if (style == CONTAINER_HOLLOW_LIGHT || style == CONTAINER_HOLLOW_HEAVY) {
+      left_ = *left;
+      left_size_ = left_().length();
+      right_ = *right;
+      right_size_ = right_().length();
+    }
+  }  // NOLINT
 
   const Charset& charset_;  // NOLINT
   std::optional<Color> foreground_color_;
@@ -71,10 +88,21 @@ class Border : public Node {
       title_box.y_max = box.y_min;
       children_[1]->SetBox(title_box);
     }
+    if (children_.size() == 1 &&
+        (charset_ == simple_border_charset[CONTAINER_HOLLOW_LIGHT] ||
+         charset_ == simple_border_charset[CONTAINER_HOLLOW_HEAVY])) {
+      box.x_min += 2;
+      box.x_max -= 2;
+      box.y_min += 1;
+      box.y_max -= 1;
+      children_[0]->SetBox(box);
+      return;
+    }
     box.x_min++;
     box.x_max--;
     box.y_min++;
     box.y_max--;
+
     children_[0]->SetBox(box);
   }
 
@@ -101,6 +129,63 @@ class Border : public Node {
       p2.automerge = true;
     }
     for (int y = box_.y_min + 1; y < box_.y_max; ++y) {
+      if (children_.size() == 1 &&
+          (charset_ == simple_border_charset[CONTAINER_HOLLOW_LIGHT] ||
+           charset_ == simple_border_charset[CONTAINER_HOLLOW_HEAVY])) {
+        if (y == box_.y_min + 1) {
+          Pixel& p3 = screen.PixelAt(box_.x_min - 1, y);
+          Pixel& p35 = screen.PixelAt(box_.x_min + 1, y);
+          Pixel& p4 = screen.PixelAt(box_.x_max - 1, y);
+          Pixel& p45 = screen.PixelAt(box_.x_max, y);
+          if (charset_ == simple_border_charset[CONTAINER_HOLLOW_HEAVY]) {
+            p3.character = "┏━";   // NOLINT
+            p35.character = "┓";   // NOLINT
+            p4.character = "┏";    // NOLINT
+            p45.character = "━┓";  // NOLINT
+          } else if (charset_ ==
+                     simple_border_charset[CONTAINER_HOLLOW_LIGHT]) {
+            p3.character = "┌─";   // NOLINT
+            p35.character = "┐";   // NOLINT
+            p4.character = "┌";    // NOLINT
+            p45.character = "─┐";  // NOLINT
+          }
+          p3.automerge = true;
+          p35.automerge = true;
+          p4.automerge = true;
+          p45.automerge = true;
+          continue;
+        } else if (y == box_.y_max - 1) {
+          Pixel& p3 = screen.PixelAt(box_.x_min - 1, y);
+          Pixel& p35 = screen.PixelAt(box_.x_min + 1, y);
+          Pixel& p4 = screen.PixelAt(box_.x_max - 1, y);
+          Pixel& p45 = screen.PixelAt(box_.x_max, y);
+          if (charset_ == simple_border_charset[CONTAINER_HOLLOW_HEAVY]) {
+            p3.character = "┗━";   // NOLINT
+            p35.character = "┛";   // NOLINT
+            p4.character = "┗";    // NOLINT
+            p45.character = "━┛";  // NOLINT
+          } else if (charset_ ==
+                     simple_border_charset[CONTAINER_HOLLOW_LIGHT]) {
+            p3.character = "└─";  // NOLINT
+            p35.character = "┘";  // NOLINT
+            p4.character = "└─";  // NOLINT
+            p45.character = "┘";  // NOLINT
+          }
+          p3.automerge = true;
+          p35.automerge = true;
+          p4.automerge = true;
+          p45.automerge = true;
+          continue;
+        } else {
+          Pixel& pl = screen.PixelAt(box_.x_min, y);
+          Pixel& pr = screen.PixelAt(box_.x_max, y);
+          pl.character = left_().at(y % left_size_);
+          pl.automerge = true;
+          pr.character = right_().at(y % right_size_);
+          pr.automerge = true;
+          continue;
+        }
+      }
       Pixel& p3 = screen.PixelAt(box_.x_min, y);
       Pixel& p4 = screen.PixelAt(box_.x_max, y);
       p3.character = charset_[5];  // NOLINT
@@ -478,12 +563,30 @@ Element borderEmpty(Element child) {
   return std::make_shared<Border>(unpack(std::move(child)), EMPTY);
 }
 
-Element borderCustomLight(Element child) {
-  return std::make_shared<Border>(unpack(std::move(child)), CUSTOM_LIGHT);
+Element borderHollowLight(Element child) {
+  return std::make_shared<Border>(unpack(std::move(child)), HOLLOW_LIGHT);
 }
 
-Element borderCustomHeavy(Element child) {
-  return std::make_shared<Border>(unpack(std::move(child)), CUSTOM_HEAVY);
+Element borderHollowHeavy(Element child) {
+  return std::make_shared<Border>(unpack(std::move(child)), HOLLOW_HEAVY);
+}
+
+Decorator borderContainerHollowLight(StringRef left_container_text,
+                                     StringRef right_container_text) {
+  return [left_container_text, right_container_text](Element child) {
+    return std::make_shared<Border>(unpack(std::move(child)),
+                                    CONTAINER_HOLLOW_LIGHT, std::nullopt,
+                                    left_container_text, right_container_text);
+  };
+}
+
+Decorator borderContainerHollowHeavy(StringRef left_container_text,
+                                     StringRef right_container_text) {
+  return [left_container_text, right_container_text](Element child) {
+    return std::make_shared<Border>(unpack(std::move(child)),
+                                    CONTAINER_HOLLOW_HEAVY, std::nullopt,
+                                    left_container_text, right_container_text);
+  };
 }
 
 /// @brief Draw window with a title and a border around the element.
