@@ -101,14 +101,13 @@ class InputBase : public ComponentBase, public InputOption {
   Element Render() override {
     const bool is_focused = Focused();
     const auto focused = (!is_focused && !hovered_) ? select
-                         : insert()                 ? focusCursorBarBlinking
+                         : insert()                 ? focusCursorBlockBlinking
                                                     : focusCursorBlockBlinking;
 
     auto transform_func =
         transform ? transform : InputOption::Default().transform;
-
     // placeholder.
-    if (content->empty()) {
+    if (content->empty() && placeholder().length() > 0) {
       auto element = text(placeholder()) | xflex | frame;
       if (is_focused) {
         element |= focus;
@@ -210,94 +209,10 @@ class InputBase : public ComponentBase, public InputOption {
     return true;
   }
 
-  bool HandleDelete() {
-    if (cursor_position() == (int)content->size()) {
-      return false;
-    }
-    const size_t start = cursor_position();
-    const size_t end = GlyphNext(content(), cursor_position());
-    content->erase(start, end - start);
-    return true;
-  }
-
-  bool HandleArrowLeft() {
-    if (cursor_position() == 0) {
-      return false;
-    }
-
-    cursor_position() = GlyphPrevious(content(), cursor_position());
-    return true;
-  }
-
-  bool HandleArrowRight() {
-    if (cursor_position() == (int)content->size()) {
-      return false;
-    }
-
-    cursor_position() = GlyphNext(content(), cursor_position());
-    return true;
-  }
-
-  size_t CursorColumn() {
-    size_t iter = cursor_position();
-    int width = 0;
-    while (true) {
-      if (iter == 0) {
-        break;
-      }
-      iter = GlyphPrevious(content(), iter);
-      if (content()[iter] == '\n') {
-        break;
-      }
-      width += GlyphWidth(content(), iter);
-    }
-    return width;
-  }
-
-  // Move the cursor `columns` on the right, if possible.
-  void MoveCursorColumn(int columns) {
-    while (columns > 0) {
-      if (cursor_position() == (int)content().size() ||
-          content()[cursor_position()] == '\n') {
-        return;
-      }
-
-      columns -= GlyphWidth(content(), cursor_position());
-      cursor_position() = GlyphNext(content(), cursor_position());
-    }
-  }
-
   bool HandleArrowUp() {
-    if (cursor_position() == 0) {
+    if (cursor_position() == (int)content->size()) {
       return false;
     }
-
-    const size_t columns = CursorColumn();
-
-    // Move cursor at the beginning of 2 lines above.
-    while (true) {
-      if (cursor_position() == 0) {
-        return true;
-      }
-      const size_t previous = GlyphPrevious(content(), cursor_position());
-      if (content()[previous] == '\n') {
-        break;
-      }
-      cursor_position() = previous;
-    }
-    cursor_position() = GlyphPrevious(content(), cursor_position());
-    while (true) {
-      if (cursor_position() == 0) {
-        break;
-      }
-      const size_t previous = GlyphPrevious(content(), cursor_position());
-      if (content()[previous] == '\n') {
-        break;
-      }
-      cursor_position() = previous;
-    }
-
-    MoveCursorColumn(columns);
     return true;
   }
 
@@ -305,32 +220,6 @@ class InputBase : public ComponentBase, public InputOption {
     if (cursor_position() == (int)content->size()) {
       return false;
     }
-
-    const size_t columns = CursorColumn();
-
-    // Move cursor at the beginning of the next line
-    while (true) {
-      if (content()[cursor_position()] == '\n') {
-        break;
-      }
-      cursor_position() = GlyphNext(content(), cursor_position());
-      if (cursor_position() == (int)content().size()) {
-        return true;
-      }
-    }
-    cursor_position() = GlyphNext(content(), cursor_position());
-
-    MoveCursorColumn(columns);
-    return true;
-  }
-
-  bool HandleHome() {
-    cursor_position() = 0;
-    return true;
-  }
-
-  bool HandleEnd() {
-    cursor_position() = content->size();
     return true;
   }
 
@@ -342,8 +231,19 @@ class InputBase : public ComponentBase, public InputOption {
     return true;
   }
 
+  bool HandleDelete() {
+    if (cursor_position() == (int)content->size()) {
+      return false;
+    }
+    const size_t start = cursor_position();
+    const size_t end = GlyphNext(content(), cursor_position());
+    content->erase(start, end - start);
+    return true;
+  }
+
   bool HandleCharacter(const std::string& character) {
-    if (content().length() >= max_input_len()) return true;
+    if (content().length() >= max_input_len())
+      return true;
     if (!insert() && cursor_position() < (int)content->size() &&
         content()[cursor_position()] != '\n') {
       HandleDelete();
@@ -363,20 +263,8 @@ class InputBase : public ComponentBase, public InputOption {
     if (event.is_character()) {
       return HandleCharacter(event.character());
     }
-    if (event.is_mouse()) {
-      return HandleMouse(event);
-    }
     if (event == Event::Backspace) {
       return HandleBackspace();
-    }
-    if (event == Event::Delete) {
-      return HandleDelete();
-    }
-    if (event == Event::ArrowLeft) {
-      return HandleArrowLeft();
-    }
-    if (event == Event::ArrowRight) {
-      return HandleArrowRight();
     }
     if (event == Event::ArrowUp) {
       return HandleArrowUp();
@@ -384,141 +272,7 @@ class InputBase : public ComponentBase, public InputOption {
     if (event == Event::ArrowDown) {
       return HandleArrowDown();
     }
-    if (event == Event::Home) {
-      return HandleHome();
-    }
-    if (event == Event::End) {
-      return HandleEnd();
-    }
-    if (event == Event::ArrowLeftCtrl) {
-      return HandleLeftCtrl();
-    }
-    if (event == Event::ArrowRightCtrl) {
-      return HandleRightCtrl();
-    }
-    if (event == Event::Insert) {
-      return HandleInsert();
-    }
     return false;
-  }
-
-  bool HandleLeftCtrl() {
-    if (cursor_position() == 0) {
-      return false;
-    }
-
-    // Move left, as long as left it not a word.
-    while (cursor_position()) {
-      const size_t previous = GlyphPrevious(content(), cursor_position());
-      if (IsWordCharacter(content(), previous)) {
-        break;
-      }
-      cursor_position() = previous;
-    }
-    // Move left, as long as left is a word character:
-    while (cursor_position()) {
-      const size_t previous = GlyphPrevious(content(), cursor_position());
-      if (!IsWordCharacter(content(), previous)) {
-        break;
-      }
-      cursor_position() = previous;
-    }
-    return true;
-  }
-
-  bool HandleRightCtrl() {
-    if (cursor_position() == (int)content().size()) {
-      return false;
-    }
-
-    // Move right, until entering a word.
-    while (cursor_position() < (int)content().size()) {
-      cursor_position() = GlyphNext(content(), cursor_position());
-      if (IsWordCharacter(content(), cursor_position())) {
-        break;
-      }
-    }
-    // Move right, as long as right is a word character:
-    while (cursor_position() < (int)content().size()) {
-      const size_t next = GlyphNext(content(), cursor_position());
-      if (!IsWordCharacter(content(), cursor_position())) {
-        break;
-      }
-      cursor_position() = next;
-    }
-
-    return true;
-  }
-
-  bool HandleMouse(Event event) {
-    hovered_ = box_.Contain(event.mouse().x,  //
-                            event.mouse().y) &&
-               CaptureMouse(event);
-    if (!hovered_) {
-      return false;
-    }
-
-    if (event.mouse().button != Mouse::Left ||
-        event.mouse().motion != Mouse::Pressed) {
-      return false;
-    }
-
-    TakeFocus();
-
-    if (content->empty()) {
-      cursor_position() = 0;
-      return true;
-    }
-
-    // Find the line and index of the cursor.
-    std::vector<std::string> lines = Split(*content);
-    int cursor_line = 0;
-    int cursor_char_index = cursor_position();
-    for (const auto& line : lines) {
-      if (cursor_char_index <= (int)line.size()) {
-        break;
-      }
-
-      cursor_char_index -= line.size() + 1;
-      cursor_line++;
-    }
-    const int cursor_column =
-        string_width(lines[cursor_line].substr(0, cursor_char_index));
-
-    int new_cursor_column = cursor_column + event.mouse().x - cursor_box_.x_min;
-    int new_cursor_line = cursor_line + event.mouse().y - cursor_box_.y_min;
-
-    // Fix the new cursor position:
-    new_cursor_line = std::max(std::min(new_cursor_line, (int)lines.size()), 0);
-
-    const std::string empty_string;
-    const std::string& line = new_cursor_line < (int)lines.size()
-                                  ? lines[new_cursor_line]
-                                  : empty_string;
-    new_cursor_column = util::clamp(new_cursor_column, 0, string_width(line));
-
-    if (new_cursor_column == cursor_column &&  //
-        new_cursor_line == cursor_line) {
-      return false;
-    }
-
-    // Convert back the new_cursor_{line,column} toward cursor_position:
-    cursor_position() = 0;
-    for (int i = 0; i < new_cursor_line; ++i) {
-      cursor_position() += lines[i].size() + 1;
-    }
-    while (new_cursor_column > 0) {
-      new_cursor_column -= GlyphWidth(content(), cursor_position());
-      cursor_position() = GlyphNext(content(), cursor_position());
-    }
-
-    on_change();
-    return true;
-  }
-
-  bool HandleInsert() {
-    insert() = !insert();
-    return true;
   }
 
   bool Focusable() const final { return true; }
