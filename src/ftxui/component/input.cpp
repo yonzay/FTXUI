@@ -101,8 +101,8 @@ class InputBase : public ComponentBase, public InputOption {
   Element Render() override {
     const bool is_focused = Focused();
     const auto focused = (!is_focused && !hovered_) ? select
-                         : insert()                 ? focusCursorBlockBlinking
-                                                    : focusCursorBlockBlinking;
+                         : insert()                 ? focusCursorUnderline
+                                                    : focusCursorUnderline;
 
     auto transform_func =
         transform ? transform : InputOption::Default().transform;
