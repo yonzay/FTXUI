@@ -101,8 +101,8 @@ class InputBase : public ComponentBase, public InputOption {
   Element Render() override {
     const bool is_focused = Focused();
     const auto focused = (!is_focused && !hovered_) ? select
-                         : insert()                 ? focusCursorUnderline
-                                                    : focusCursorUnderline;
+                         : insert()                 ? select
+                                                    : select;
 
     auto transform_func =
         transform ? transform : InputOption::Default().transform;
@@ -186,7 +186,7 @@ class InputBase : public ComponentBase, public InputOption {
   }
 
   Element Text(const std::string& input) {
-    if (!password()) {
+    if (!password() || input == "\u2589") {
       return text(input);
     }
 
@@ -209,19 +209,9 @@ class InputBase : public ComponentBase, public InputOption {
     return true;
   }
 
-  bool HandleArrowUp() {
-    if (cursor_position() == (int)content->size()) {
-      return false;
-    }
-    return true;
-  }
+  bool HandleArrowUp() { return false; }
 
-  bool HandleArrowDown() {
-    if (cursor_position() == (int)content->size()) {
-      return false;
-    }
-    return true;
-  }
+  bool HandleArrowDown() { return false; }
 
   bool HandleReturn() {
     if (multiline()) {
